@@ -1,5 +1,4 @@
 import numpy as np 
-
 from scipy.stats import qmc 
 
 N = 9 
@@ -33,4 +32,5 @@ for i, row in enumerate(samples):
     for name, value in zip(param_names, row):
         print(f'  {name}: {value:.3f}')
         print(f'  Airfoil: {airfoil_choices[i]}')
+
         print() 
