@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from joblib import dump # type: ignore
+import matplotlib.pyplot as plt
 
 from sklearn.model_selection import GroupShuffleSplit # type: ignore
 from sklearn.metrics import mean_absolute_error, mean_squared_error,     r2_score # type: ignore
 
 from xgboost import XGBRegressor # type: ignore
+from xgboost.callback import EarlyStopping
 
 ROOT = Path(__file__).resolve().parents[2]
 LF_CSV = ROOT / 'data' / 'lf_data.csv'
@@ -19,7 +21,7 @@ CD_MIN, CD_MAX = 0, 0.5
 LD_MIN, LD_MAX = -100, 100
 
 BASE_FEATURES = ['Aspect', 'Taper', 'Sweep', 'Dihedral', 'Twist', 'Alpha']
-TARGETS = ['CLtot', 'CDtot', 'L_D']
+TARGETS = ['CLtot', 'CDtot', 'L_D', 'CMytot']
 GROUP_COLS = ['Aspect', 'Taper', 'Sweep', 'Dihedral', 'Twist']
 
 def report(y_true, y_pred, name: str):
@@ -35,9 +37,9 @@ def make_groups(df):
 def make_xgb(seed: int = 42) -> XGBRegressor:
     return XGBRegressor(
         n_estimators=1500,
-        learning_rate=0.03,
-        max_depth=5,
-        subsample=0.75,
+        learning_rate=0.02,
+        max_depth=7,
+        subsample=0.75, 
         colsample_bytree=0.75,
         reg_alpha=1e-3,
         reg_lambda=5.0,
@@ -45,20 +47,24 @@ def make_xgb(seed: int = 42) -> XGBRegressor:
         gamma=0.05,
         objective='reg:squarederror',
         random_state=seed,
+        early_stopping_rounds=100,
         n_jobs=-1,
+        eval_metric='rmse'
     )
 
 def main():
     lf_df = pd.read_csv(LF_CSV)
     print('Raw CDtot max:', lf_df['CDtot'].max(), 
           'Raw CLtot min/max:', lf_df['CLtot'].min(), lf_df['CLtot'].max(),
-          'Raw L_D min/max:', lf_df['L_D'].min(), lf_df['L_D'].max())
+          'Raw L_D min/max:', lf_df['L_D'].min(), lf_df['L_D'].max(),
+          'Raw CMytot min/max:', lf_df['CMytot'].min(), lf_df['CMytot'].max(),)
+    
     print('Raw Re unique:', lf_df['Re'].nunique(), 'min/max:', lf_df['Re'].min(), lf_df['Re'].max())
 
     lf_df = lf_df.dropna(subset=BASE_FEATURES + ['Re'] + TARGETS).copy()
     lf_df = lf_df[lf_df['CDtot'].between(CD_MIN, CD_MAX)].copy()
     lf_df = lf_df[lf_df['CLtot'].between(CL_MIN, CL_MAX)].copy()
-    lf_df = lf_df[lf_df['L_D'].between(LD_MIN, LD_MAX)]
+    lf_df = lf_df[lf_df['L_D'].between(LD_MIN, LD_MAX)].copy()
     lf_df = lf_df[lf_df['Re'] > 0].copy()
 
     if USE_LOGRE:
@@ -70,7 +76,8 @@ def main():
     print('\nAfter cleaning rows:', len(lf_df))
     print('After cleaning CDtot max:', lf_df['CDtot'].max(), 
           'CLtot min/max:', lf_df['CLtot'].min(), lf_df['CLtot'].max(),
-          'L_D min/max:', lf_df['L_D'].min(), lf_df['L_D'].max())
+          'L_D min/max:', lf_df['L_D'].min(), lf_df['L_D'].max(),
+          'CMytot min/max:', lf_df['CMytot'].min(), lf_df['CMytot'].max())
     print('Using FEATURES:', FEATURES)
 
     groups = make_groups(lf_df)
@@ -90,11 +97,32 @@ def main():
     for tgt in TARGETS:
         print(f'\nTraining target: {tgt}')
         model = make_xgb(seed=42)
-        model.fit(X_train, Y_train[tgt], eval_set=[(X_test, Y_test[tgt])], verbose=False)
+        model.fit(X_train, 
+                  Y_train[tgt],
+                  eval_set=[(X_train, Y_train[tgt]), (X_test, Y_test[tgt])],
+                  verbose=False,
+                  )
         pred = model.predict(X_test)
         report(Y_test[tgt], pred, f'TEST {tgt}')
         models[tgt] = model
         dump(model, OUT_DIR / f'lf_{tgt}.joblib')
+
+        # training history
+        results = model.evals_result()
+
+        train_rmse = results['validation_0']['rmse']
+        test_rmse  = results['validation_1']['rmse']
+        best_iter = model.best_iteration
+
+        plt.figure()
+        plt.plot(train_rmse, label='Train RMSE')
+        plt.plot(test_rmse, label='Validation RMSE')
+        plt.axvline(best_iter, linestyle='--', label='Best iteration')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss (RMSE)')
+        plt.legend()
+        plt.title(f'Training history: {tgt}')
+        plt.show()
 
     print(f'\nSaved models to: {OUT_DIR.resolve()}')
 
