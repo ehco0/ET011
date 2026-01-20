@@ -28,24 +28,24 @@ def run_design(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model = AeroMultiNN(input_dim=9)
     model.load_state_dict(
-        torch.load(ROOT / "models" / "trained_model.pt", map_location=device)
+        torch.load(ROOT / 'models' / 'trained_model.pt', map_location=device)
     )
 
-    with open(ROOT / "models" / "norm_stats.pkl", "rb") as f:
+    with open(ROOT / 'models' / 'norm_stats.pkl', 'rb') as f:
         stats = pickle.load(f)
 
-    xgb_CL = joblib.load(ROOT / "models" / "low fidelity" / "lf_CLtot.joblib")
-    xgb_CD = joblib.load(ROOT / "models" / "low fidelity" / "lf_CDtot.joblib")
+    xgb_CL = joblib.load(ROOT / 'models' / 'low fidelity' / 'lf_CLtot.joblib')
+    xgb_CD = joblib.load(ROOT / 'models' / 'low fidelity' / 'lf_CDtot.joblib')
 
     surrogate = NNSurrogate(
         model=model,
-        CL_mean=stats["CL_mean"], CL_std=stats["CL_std"],
-        dlogCD_mean=stats["dlogCD_mean"], dlogCD_std=stats["dlogCD_std"],
-        LD_mean=stats["LD_mean"], LD_std=stats["LD_std"],
+        CL_mean=stats['CL_mean'], CL_std=stats['CL_std'],
+        dlogCD_mean=stats['dlogCD_mean'], dlogCD_std=stats['dlogCD_std'],
+        LD_mean=stats['LD_mean'], LD_std=stats['LD_std'],
         xgb_CL=xgb_CL,
         xgb_CD=xgb_CD,
         device=device
@@ -72,10 +72,10 @@ def run_design(
     stl_path = export_stl(vsp_path, stl_file=stl_file)
 
     print('\nInput environment:')
-    print(f'{"Re":11s}: {env["Re"]}')
-    print(f'{"Alpha Start":11s}: {Alpha_start}')
-    print(f'{"Alpha End":11s}: {Alpha_end}')
-    print(f'{"Mode":11s}: {mode}')
+    print(f'{'Re':11s}: {env['Re']}')
+    print(f'{'Alpha Start':11s}: {Alpha_start}')
+    print(f'{'Alpha End':11s}: {Alpha_end}')
+    print(f'{'Mode':11s}: {mode}')
 
     print('\nBest geometry:')
     for k, v in best_geom.items():
@@ -105,3 +105,4 @@ if __name__ == '__main__':
         Alpha_end=20.0,
         mode='normal'
     )
+
