@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 
-
 class NNSurrogate:
     def __init__(
         self,
@@ -57,4 +56,5 @@ class NNSurrogate:
             'CD': cd_pred.flatten(),
             'LD': ld_pred.flatten()
         }
+
 
