@@ -1,4 +1,3 @@
-# nn_surrogate.py
 import torch
 import numpy as np
 
@@ -15,7 +14,7 @@ class NNSurrogate:
         device=None
     ):
         self.model = model.eval()
-        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
 
         self.CL_mean = CL_mean
@@ -58,3 +57,4 @@ class NNSurrogate:
             'CD': cd_pred.flatten(),
             'LD': ld_pred.flatten()
         }
+
